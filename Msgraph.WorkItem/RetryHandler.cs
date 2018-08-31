@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
 
+
 namespace Msgraph.WorkItem
 {
     public class RetryHandler : DelegatingHandler
@@ -39,15 +40,16 @@ namespace Msgraph.WorkItem
         /// <param name="HttpRequestMessage">A HTTP request <see cref="HttpRequestMessage"/></param>
         /// <param name="CancellationToken"></param>
         /// <returns></returns>
-        public override async Task<HttpResponseMessage> SendAsyncy(HttpRequestMessage httpRequest, CancellationToken cancellationToken)
+        protected async override Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest, CancellationToken cancellationToken)
         {
             // Sends request first time
             var response = await base.SendAsync(httpRequest, cancellationToken);
 
             // Check response statusCode for whether needs retry
-            if (IsRetry(response.StatusCode))
+            if (IsRetry(response))
             {
-                // call SendRetryAsync method asynchronously sends the retry request
+                System.Diagnostics.Debug.WriteLine("do retry");
+                response = await SendRetryAsync(response, cancellationToken);
             }
 
             return response;
@@ -61,16 +63,14 @@ namespace Msgraph.WorkItem
 
             TimeSpan delay = TimeSpan.FromSeconds(0);
             
-            // Call CopyRequest method to create a new HTTP request
-            HttpRequestMessage newRequest = CopyRequest();
-
             //Check if retry times less than maxRetry
             while (retryCount < MAX_RETRY)
             {
-                // Increment retry conunts
-                // Add retry-attemp header to the new request
+                
+                var request = response.RequestMessage;
                 retryCount++;
-                newRequest.Headers.Add(RETRY_ATTEMPT, retryCount.ToString());
+                AddOrUpdateRetryAttempt(request, retryCount);
+
                 // Check response's header to get retry-after 
                 HttpHeaders headers = response.Headers;
                 if (headers.TryGetValues(RETRY_AFTER, out IEnumerable<string> values))
@@ -81,7 +81,8 @@ namespace Msgraph.WorkItem
                         delay = TimeSpan.FromSeconds(delay_seconds);
                     }
                 }
-                else {
+                else
+                {
                     // Consider calculating an exponential delay here and
                     // using a strategy best suited for the operation and fault.
                 }
@@ -89,10 +90,11 @@ namespace Msgraph.WorkItem
                 // Wait to retry the operation.
                 await Task.Delay(delay);
 
-                response = await base.SendAsync(newRequest, cancellationToken);
+                response = await base.SendAsync(request, cancellationToken);
                 // Call base.SendAsyn to send the request
 
                 if (!IsRetry(response)) {
+                    System.Diagnostics.Debug.WriteLine("do retry again");
                     return response;
                 }
                 
@@ -105,10 +107,10 @@ namespace Msgraph.WorkItem
 
 
 
-        private bool IsRetry(HttpResponseMessage response)
+        public bool IsRetry(HttpResponseMessage response)
         {
-            if ((statusCode == HttpStatusCode.ServiceUnavailable ||
-                statusCode == (HttpStatusCode)429) && IsBuffed())
+            if ((response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                response.StatusCode == (HttpStatusCode)429) && IsBuffed())
             {
                 return true;
             }
@@ -116,5 +118,14 @@ namespace Msgraph.WorkItem
         }
 
         private bool IsBuffed() { return true; }
+
+        private void AddOrUpdateRetryAttempt(HttpRequestMessage request, int retry_count)
+        {
+            if (request.Headers.Contains(RETRY_ATTEMPT)) {
+                request.Headers.Remove(RETRY_ATTEMPT);
+            }
+            request.Headers.Add(RETRY_ATTEMPT, retry_count.ToString());
+        }
+
     }
 }

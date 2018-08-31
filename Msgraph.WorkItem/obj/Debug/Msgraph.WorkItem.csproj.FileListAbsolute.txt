@@ -1,0 +1,7 @@
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Msgraph.WorkItem.exe.config
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Msgraph.WorkItem.exe
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Msgraph.WorkItem.pdb
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.csproj.CoreCompileInputs.cache
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.exe
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.pdb
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.csprojAssemblyReference.cache
