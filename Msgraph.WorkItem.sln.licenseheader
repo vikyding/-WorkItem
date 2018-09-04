@@ -1,0 +1,16 @@
+extensions: designer.cs generated.cs
+extensions: .cs .cpp .h
+// ------------------------------------------------------------------------------
+//  Copyright (c) Microsoft Corporation.  All Rights Reserved.  Licensed under the MIT License.  See License in the project root for license information.
+// ------------------------------------------------------------------------------
+
+extensions: .aspx .ascx
+<%-- 
+Copyright (c) 2011 rubicon IT GmbH
+--%>
+extensions: .vb
+'Sample license text.
+extensions:  .xml .config .xsd
+<!--
+Sample license text.
+-->

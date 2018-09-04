@@ -1,4 +1,8 @@
-﻿using System;
+﻿// ------------------------------------------------------------------------------
+//  Copyright (c) Microsoft Corporation.  All Rights Reserved.  Licensed under the MIT License.  See License in the project root for license information.
+// ------------------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -6,11 +10,26 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
-
+using System.Diagnostics;
 namespace Msgraph.WorkItem
 {
     class Program
     {
+
+        static async Task<string> getString(HttpResponseMessage response)
+        {
+            var retry = new RetryWithExponentialBackoff();
+            var data_string = "";
+
+            retry.RunAsync(async () =>
+            {
+                // work with HttpClient call
+                Debug.WriteLine("run retry");
+                data_string = await response.RequestMessage.Content.ReadAsStringAsync();
+            }).Wait();
+            return data_string;
+
+        }
         static void Main()
         {
             MockRedirectHandler testHttpMessageHandler = new MockRedirectHandler();
@@ -21,13 +40,18 @@ namespace Msgraph.WorkItem
             httpRequestMessage.Content = new StringContent("Hello World");
 
             var redirectResponse = new HttpResponseMessage((HttpStatusCode)429);
-            redirectResponse.Headers.Add("Retry-After", 30.ToString());
-
+            //redirectResponse.Headers.Add("Retry-After", 30.ToString());
+            redirectResponse.RequestMessage = httpRequestMessage;
             var response_2 = new HttpResponseMessage(HttpStatusCode.OK);
 
             testHttpMessageHandler.SetHttpResponse(redirectResponse, response_2);
 
             Task<HttpResponseMessage> response = invoker.SendAsync(httpRequestMessage, new CancellationToken());
+
+            //
+            // Using HttpClient with Retry and Exponential Backoff
+            //
+            //var res = getString(redirectResponse);
         }
     }
 

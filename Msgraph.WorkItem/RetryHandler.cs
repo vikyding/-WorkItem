@@ -1,4 +1,8 @@
-﻿using System;
+﻿// ------------------------------------------------------------------------------
+//  Copyright (c) Microsoft Corporation.  All Rights Reserved.  Licensed under the MIT License.  See License in the project root for license information.
+// ------------------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +11,7 @@ using System.Threading;
 using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
-
+using System.Diagnostics;
 
 namespace Msgraph.WorkItem
 {
@@ -20,11 +24,13 @@ namespace Msgraph.WorkItem
         private const int MAX_RETRY = 3;
         private const string RETRY_AFTER = "Retry-After";
         private const string RETRY_ATTEMPT = "Retry-Attempt";
+        private const int DELAY_MILLISECONDES = 6000;
+        private const int MAX_DELAY_MILLISECONDS = 10000;
+        private int m_pow = 1;
 
-
-        //public RetryHandler()
+        //public RetryHandler(int max_retry, int delay_milliseconds, int max_delay_milliseconds, HttpMessageHandler innerHandler)
         //{
-        //    throw new System.NotImplementedException();
+        //    
         //}
 
         public RetryHandler(HttpMessageHandler innerHandler)
@@ -32,7 +38,9 @@ namespace Msgraph.WorkItem
             InnerHandler = innerHandler;
         }
 
-        // public RetryHandler(HttpMessageHandler innerHandler, RetryPolicy retryPolicy){}
+        // public RetryHandler(HttpMessageHandler innerHandler, RetryPolicy retryPolicy)
+        //{
+        //}
 
         /// <summary>
         /// Send a HTTP request 
@@ -45,56 +53,52 @@ namespace Msgraph.WorkItem
             // Sends request first time
             var response = await base.SendAsync(httpRequest, cancellationToken);
 
-            // Check response statusCode for whether needs retry
-            if (IsRetry(response))
+            // Retry the response 
+            if (IsRetry(response) && IsBuffed(httpRequest))
             {
-                System.Diagnostics.Debug.WriteLine("do retry");
+                Debug.WriteLine("do retry");
                 response = await SendRetryAsync(response, cancellationToken);
             }
 
             return response;
         }
 
+
+        /// <summary>
+        /// Retry send the HTTP request 
+        /// </summary>
+        /// <param name="response">The <see cref="HttpResponseMessage"/> need to be retried.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/></param>
+        /// <returns></returns>
         public async Task<HttpResponseMessage> SendRetryAsync(HttpResponseMessage response, CancellationToken cancellationToken)
         {
 
             
             int retryCount = 0;
-
-            TimeSpan delay = TimeSpan.FromSeconds(0);
             
             //Check if retry times less than maxRetry
             while (retryCount < MAX_RETRY)
             {
+
+                // Call Delay method to run Task.delay() based on delay time 
+                // Calculate delay time from response's header Retry-After value or from exponential backoff if response doesn't has retry-after
+                // Await Delay operation 
+                Delay(response, retryCount).Wait();
                 
+                // Get the original request
                 var request = response.RequestMessage;
+
+                // Increament retryCount and then update Retry-Attempt in request header
                 retryCount++;
                 AddOrUpdateRetryAttempt(request, retryCount);
-
-                // Check response's header to get retry-after 
-                HttpHeaders headers = response.Headers;
-                if (headers.TryGetValues(RETRY_AFTER, out IEnumerable<string> values))
-                {
-                    string retry_after = values.First();
-                    if (Int32.TryParse(retry_after, out int delay_seconds))
-                    {
-                        delay = TimeSpan.FromSeconds(delay_seconds);
-                    }
-                }
-                else
-                {
-                    // Consider calculating an exponential delay here and
-                    // using a strategy best suited for the operation and fault.
-                }
-
-                // Wait to retry the operation.
-                await Task.Delay(delay);
-
-                response = await base.SendAsync(request, cancellationToken);
+                
                 // Call base.SendAsyn to send the request
+                response = await base.SendAsync(request, cancellationToken);
+                //Debug.WriteLine(delay.Status);
 
-                if (!IsRetry(response)) {
-                    System.Diagnostics.Debug.WriteLine("do retry again");
+
+                if (!IsRetry(response) || !IsBuffed(request))
+                {
                     return response;
                 }
                 
@@ -106,19 +110,36 @@ namespace Msgraph.WorkItem
 
 
 
-
+        /// <summary>
+        /// Check the HTTP response's status to determine whether it should be retried or not.
+        /// </summary>
+        /// <param name="response">The <see cref="HttpResponseMessage"/></param>
+        /// <returns></returns>
         public bool IsRetry(HttpResponseMessage response)
         {
             if ((response.StatusCode == HttpStatusCode.ServiceUnavailable ||
-                response.StatusCode == (HttpStatusCode)429) && IsBuffed())
+                response.StatusCode == (HttpStatusCode)429))
             {
                 return true;
             }
             return false;
         }
 
-        private bool IsBuffed() { return true; }
+        /// <summary>
+        /// Check the HTTP request's payloads to determine whether it can be retried or not.
+        /// </summary>
+        /// <param name="request">The <see cref="HttpRequestMessage"/></param>
+        /// <returns></returns>
+        private bool IsBuffed(HttpRequestMessage request)
+        {
+            return true;
+        }
 
+        /// <summary>
+        /// Update Retry-Attempt header in the HTTP request
+        /// </summary>
+        /// <param name="request">The <see cref="HttpRequestMessage"/></param>
+        /// <param name="retry_count">Retry times</param>
         private void AddOrUpdateRetryAttempt(HttpRequestMessage request, int retry_count)
         {
             if (request.Headers.Contains(RETRY_ATTEMPT)) {
@@ -127,5 +148,38 @@ namespace Msgraph.WorkItem
             request.Headers.Add(RETRY_ATTEMPT, retry_count.ToString());
         }
 
+        /// <summary>
+        /// Delay task operation based on Retry-After header in the response or exponential backoff
+        /// </summary>
+        /// <param name="response">The <see cref="HttpResponseMessage"/>returned</param>
+        /// <param name="retry_count">The retry times</param>
+        /// <returns></returns>
+        private Task Delay(HttpResponseMessage response, int retry_count)
+        {
+            
+            TimeSpan delay = TimeSpan.FromMilliseconds(0);
+            HttpHeaders headers = response.Headers;
+            if (headers.TryGetValues(RETRY_AFTER, out IEnumerable<string> values))
+            {
+                string retry_after = values.First();
+                if (Int32.TryParse(retry_after, out int delay_seconds))
+                {
+                    delay = TimeSpan.FromSeconds(delay_seconds);
+                }
+            }
+            else
+            {
+                if (retry_count< 31)
+                {
+                    m_pow = m_pow << 1; // m_pow = Pow(2, m_retries - 1)
+                }
+                int delay_time = Math.Min(DELAY_MILLISECONDES * (m_pow - 1) / 2,
+                    MAX_DELAY_MILLISECONDS);
+                Debug.WriteLine("run retry" + delay_time);
+                delay = TimeSpan.FromMilliseconds(delay_time);
+            }
+            return Task.Delay(delay);
+
+        }
     }
 }
