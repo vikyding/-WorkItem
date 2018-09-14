@@ -47,7 +47,7 @@ namespace Msgraph.WorkItem
             testHttpMessageHandler.SetHttpResponse(redirectResponse, response_2);
 
             Task<HttpResponseMessage> response = invoker.SendAsync(httpRequestMessage, new CancellationToken());
-
+            Debug.WriteLine(response.Result.StatusCode);
             //
             // Using HttpClient with Retry and Exponential Backoff
             //

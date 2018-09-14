@@ -70,11 +70,9 @@ namespace MsgraphWorkItems.Tests
         public async Task ShouldRetryWithAddRetryAttemptHeader(HttpStatusCode statusCode)
         {
             var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "http://example.org/foo");
-            httpRequestMessage.Content = new StringContent("Hello World");
-
+          
             var retryResponse = new HttpResponseMessage(statusCode);
-            this.testHttpMessageHandler.SetHttpResponse(retryResponse);
-
+          
             var response_2 = new HttpResponseMessage(HttpStatusCode.OK);
 
             this.testHttpMessageHandler.SetHttpResponse(retryResponse, response_2);
@@ -83,7 +81,7 @@ namespace MsgraphWorkItems.Tests
 
             Assert.AreSame(response, response_2, "Return a response fail.");
             Assert.AreSame(response.RequestMessage, httpRequestMessage, "The request is set wrong.");
-            Assert.IsNotNull(response.RequestMessage.Headers, "The request headers is null");
+            Assert.IsNotNull(response.RequestMessage.Headers, "The request header is null");
             Assert.IsTrue(response.RequestMessage.Headers.Contains(RETRY_ATTEMPT), "Doesn't set Retry-Attemp header to request");
             IEnumerable<string> values;
             Assert.IsTrue(response.RequestMessage.Headers.TryGetValues(RETRY_ATTEMPT, out values), "Get Retry-Attemp Header values");
@@ -95,28 +93,93 @@ namespace MsgraphWorkItems.Tests
         [DataTestMethod]
         [DataRow(HttpStatusCode.ServiceUnavailable)]  // 503
         [DataRow(429)] // 429
-        public async Task RetryWithRetryAfterHeader(HttpStatusCode statusCode)
+        public async Task ShouldRetryWithBuffedContent(HttpStatusCode statusCode)
         {
             var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "http://example.org/foo");
             httpRequestMessage.Content = new StringContent("Hello World");
 
             var retryResponse = new HttpResponseMessage(statusCode);
-            this.testHttpMessageHandler.SetHttpResponse(retryResponse);
-            retryResponse.Headers.TryAddWithoutValidation(RETRY_AFTER, 20.ToString());
-
+          
             var response_2 = new HttpResponseMessage(HttpStatusCode.OK);
 
             this.testHttpMessageHandler.SetHttpResponse(retryResponse, response_2);
 
             var response = await invoker.SendAsync(httpRequestMessage, new CancellationToken());
 
-            Assert.IsNotNull(response.RequestMessage.Headers, "The request headers is null");
-            Assert.IsTrue(response.RequestMessage.Headers.Contains(RETRY_ATTEMPT), "Doesn't set Retry-Attemp header to request");
-            IEnumerable<string> values;
-            Assert.IsTrue(response.RequestMessage.Headers.TryGetValues(RETRY_ATTEMPT, out values), "Get Retry-Attemp Header values");
-            Assert.AreEqual(values.Count(), 1, "There are multiple values for Retry-Attemp header.");
-            Assert.AreEqual(values.First(), 1.ToString(), "The value of  Retry-Attemp header is wrong.");
+            Assert.IsNotNull(response.RequestMessage.Content, "The request content is null");        
+            Assert.AreEqual(response.RequestMessage.Content.ReadAsStringAsync().Result, "Hello World", "The content changed.");
+            
         }
+
+        [DataTestMethod]
+        [DataRow(HttpStatusCode.ServiceUnavailable)]  // 503
+        [DataRow(429)] // 429
+        public async Task ShouldNotRetryWithForwardOnlyStream(HttpStatusCode statusCode)
+        {
+
+        }
+
+        [DataTestMethod]
+        [DataRow(HttpStatusCode.ServiceUnavailable)]  // 503
+        [DataRow(429)] // 429
+        public async Task ExceedMaxRetryShouldReturn(HttpStatusCode statusCode)
+        {
+            var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "http://example.org/foo");
+            
+            var retryResponse = new HttpResponseMessage(statusCode);  
+            var response_2 = new HttpResponseMessage(statusCode);
+
+            this.testHttpMessageHandler.SetHttpResponse(retryResponse, response_2);
+
+            var response = await invoker.SendAsync(httpRequestMessage, new CancellationToken());
+
+            Assert.IsTrue((response.Equals(retryResponse) || response.Equals(response_2)), "The response doesn't match.");
+            IEnumerable<string> values;
+            Assert.IsTrue(response.RequestMessage.Headers.TryGetValues(RETRY_ATTEMPT, out values), "Don't set Retry-Attemp Header");
+            Assert.AreEqual(values.Count(), 1, "There are multiple values for Retry-Attemp header.");
+            Assert.AreEqual(values.First(), 3.ToString(), "Exceed max retry times.");
+        }
+
+        [DataTestMethod]
+        [DataRow(HttpStatusCode.ServiceUnavailable)]  // 503
+        [DataRow(429)] // 429
+        public async Task ShouldDelayBasedOnRetryAfterHeader(HttpStatusCode statusCode)
+        {       
+            var retryResponse = new HttpResponseMessage(statusCode);
+            retryResponse.Headers.TryAddWithoutValidation(RETRY_AFTER, 4.ToString());
+            await DelayTestWithMessage(retryResponse, 1, "Init");
+            Assert.AreEqual(Message, "Init Work 1", "Delay doesn't work");
+        }
+
+
+        [DataTestMethod]
+        [DataRow(HttpStatusCode.ServiceUnavailable)]  // 503
+        //[DataRow(429)] // 429
+        public async Task ShouldDelayBasedOnExponentialBackOff(HttpStatusCode statusCode)
+        {
+            var retryResponse = new HttpResponseMessage(statusCode);
+            String compareMessage = "Init Work ";
+            //IEnumerable<Task> tasks = new List<Task>();
+            for (int count = 0; count < 3; count++)
+            {
+                await DelayTestWithMessage(retryResponse, count, "Init");
+                Assert.AreEqual(Message, compareMessage + count.ToString(), "Delay doesn't work");
+            }
+
+        }
+
+        private async Task DelayTestWithMessage(HttpResponseMessage response, int count, string message)
+        {
+            Message = message;
+            await Task.Run(async () =>
+           {
+               await this.retryHandler.Delay(response, count);
+               Message += " Work " + count.ToString();
+           });
+
+        }
+
+        public string Message { get; private set; }
 
     }
 

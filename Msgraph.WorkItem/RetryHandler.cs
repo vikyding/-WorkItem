@@ -56,7 +56,6 @@ namespace Msgraph.WorkItem
             // Retry the response 
             if (IsRetry(response) && IsBuffed(httpRequest))
             {
-                Debug.WriteLine("do retry");
                 response = await SendRetryAsync(response, cancellationToken);
             }
 
@@ -80,10 +79,9 @@ namespace Msgraph.WorkItem
             while (retryCount < MAX_RETRY)
             {
 
-                // Call Delay method to run Task.delay() based on delay time 
-                // Calculate delay time from response's header Retry-After value or from exponential backoff if response doesn't has retry-after
-                // Await Delay operation 
-                Delay(response, retryCount).Wait();
+                // Call Delay method to get delay time from response's Retry-After header or from exponential backoff 
+                // Start Task.Delay task
+                Task delay = Delay(response, retryCount);
                 
                 // Get the original request
                 var request = response.RequestMessage;
@@ -92,11 +90,12 @@ namespace Msgraph.WorkItem
                 retryCount++;
                 AddOrUpdateRetryAttempt(request, retryCount);
                 
+                // Delay time
+                await delay;
+                
                 // Call base.SendAsyn to send the request
                 response = await base.SendAsync(request, cancellationToken);
-                //Debug.WriteLine(delay.Status);
-
-
+                 
                 if (!IsRetry(response) || !IsBuffed(request))
                 {
                     return response;
@@ -154,9 +153,9 @@ namespace Msgraph.WorkItem
         /// <param name="response">The <see cref="HttpResponseMessage"/>returned</param>
         /// <param name="retry_count">The retry times</param>
         /// <returns></returns>
-        private Task Delay(HttpResponseMessage response, int retry_count)
+        public Task Delay(HttpResponseMessage response, int retry_count)
         {
-            
+            Debug.WriteLine("enter delay" + retry_count);
             TimeSpan delay = TimeSpan.FromMilliseconds(0);
             HttpHeaders headers = response.Headers;
             if (headers.TryGetValues(RETRY_AFTER, out IEnumerable<string> values))
