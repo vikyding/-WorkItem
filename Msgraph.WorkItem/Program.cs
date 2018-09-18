@@ -3,90 +3,53 @@
 // ------------------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Collections.Concurrent;
+
+
 namespace Msgraph.WorkItem
 {
     class Program
     {
 
-        static async Task<string> getString(HttpResponseMessage response)
-        {
-            var retry = new RetryWithExponentialBackoff();
-            var data_string = "";
-
-            retry.RunAsync(async () =>
-            {
-                // work with HttpClient call
-                Debug.WriteLine("run retry");
-                data_string = await response.RequestMessage.Content.ReadAsStringAsync();
-            }).Wait();
-            return data_string;
-
-        }
         static void Main()
         {
-            MockRedirectHandler testHttpMessageHandler = new MockRedirectHandler();
-            RetryHandler retryHandler = new RetryHandler(testHttpMessageHandler);
-            HttpMessageInvoker invoker = new HttpMessageInvoker(retryHandler);
+            ConcurrentQueue<int> cq = new ConcurrentQueue<int>();
 
-            var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "http://example.org/foo");
-            httpRequestMessage.Content = new StringContent("Hello World");
+            // Populate the queue.
+            for (int i = 0; i < 10000; i++) cq.Enqueue(i);
+            Console.WriteLine("start program.");
+            // Peek at the first element.
+            int result;
+            if (!cq.TryPeek(out result))
+            {
+                Console.WriteLine("CQ: TryPeek failed when it should have succeeded");
+            }
+            else if (result != 0)
+            {
+                Console.WriteLine("CQ: Expected TryPeek result of 0, got {0}", result);
+            }
+            Console.WriteLine("the size of queue :" + cq.Count);
+            int outerSum = 0;
+            // An action to consume the ConcurrentQueue.
+            Action action = () =>
+            {
+                int localSum = 0;
+                int localValue;
+                while (cq.TryDequeue(out localValue)) localSum += localValue;
+                Interlocked.Add(ref outerSum, localSum);
+            };
+            Console.WriteLine("Start Invoke");
+            // Start 4 concurrent consuming actions.
+            Parallel.Invoke(action, action, action, action);
 
-            var redirectResponse = new HttpResponseMessage((HttpStatusCode)429);
-            //redirectResponse.Headers.Add("Retry-After", 30.ToString());
-            redirectResponse.RequestMessage = httpRequestMessage;
-            var response_2 = new HttpResponseMessage(HttpStatusCode.OK);
-
-            testHttpMessageHandler.SetHttpResponse(redirectResponse, response_2);
-
-            Task<HttpResponseMessage> response = invoker.SendAsync(httpRequestMessage, new CancellationToken());
-            Debug.WriteLine(response.Result.StatusCode);
-            //
-            // Using HttpClient with Retry and Exponential Backoff
-            //
-            //var res = getString(redirectResponse);
+            Console.WriteLine("outerSum = {0}, should be 49995000", outerSum);
+            string userInputAddress = Console.ReadLine();
         }
     }
 
-    public class MockRedirectHandler : HttpMessageHandler
-    {
-        private HttpResponseMessage _response1
-        { get; set; }
-        private HttpResponseMessage _response2
-        { get; set; }
-
-        private bool _response1Sent = false;
-
-        protected async override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            if (!_response1Sent)
-            {
-                _response1Sent = true;
-                _response1.RequestMessage = request;
-                return _response1;
-            }
-            else
-            {
-                _response1Sent = false;
-                _response2.RequestMessage = request;
-                return _response2;
-            }
-        }
-
-        public void SetHttpResponse(HttpResponseMessage response1, HttpResponseMessage response2 = null)
-        {
-            this._response1Sent = false;
-            this._response1 = response1;
-            this._response2 = response2;
-        }
-
-    }
 
 }

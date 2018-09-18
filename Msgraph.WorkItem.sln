@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.28010.2016
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Msgraph.WorkItem", "Msgraph.WorkItem\Msgraph.WorkItem.csproj", "{EA0E1C3B-4223-4304-A0CF-BF122AA63641}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MsgraphWorkItems.Tests", "MsgraphWorkItems.Tests\MsgraphWorkItems.Tests.csproj", "{F8FF180A-75A1-482C-B29D-6CD1ADD0DF8B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MsgraphWorkItems.Tests", "MsgraphWorkItems.Tests\MsgraphWorkItems.Tests.csproj", "{F8FF180A-75A1-482C-B29D-6CD1ADD0DF8B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
