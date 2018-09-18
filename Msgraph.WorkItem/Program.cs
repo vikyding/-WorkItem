@@ -36,7 +36,7 @@ namespace Msgraph.WorkItem
             RetryHandler retryHandler = new RetryHandler(testHttpMessageHandler);
             HttpMessageInvoker invoker = new HttpMessageInvoker(retryHandler);
 
-            var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "http://example.org/foo");
+            var httpRequestMessage = new HttpRequestMessage(HttpMethod.Put, "http://example.org/foo");
             httpRequestMessage.Content = new StringContent("Hello World");
 
             var redirectResponse = new HttpResponseMessage((HttpStatusCode)429);
