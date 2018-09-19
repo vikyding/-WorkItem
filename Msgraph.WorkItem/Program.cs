@@ -17,6 +17,7 @@ namespace Msgraph.WorkItem
 
         static void Main()
         {
+<<<<<<< HEAD
             ConcurrentQueue<int> cq = new ConcurrentQueue<int>();
 
             // Populate the queue.
@@ -48,7 +49,21 @@ namespace Msgraph.WorkItem
 
             Console.WriteLine("outerSum = {0}, should be 49995000", outerSum);
             string userInputAddress = Console.ReadLine();
+=======
+           
         }
+    }
+
+    public class MockRedirectHandler : HttpMessageHandler
+    {
+        private HttpResponseMessage _response1
+        { get; set; }
+        private HttpResponseMessage _response2
+        { get; set; }
+
+        private bool _response1Sent = false;
+
+       
     }
 
 
