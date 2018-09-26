@@ -5,3 +5,10 @@ C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgrap
 C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.exe
 C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.pdb
 C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.csprojAssemblyReference.cache
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Microsoft.Graph.Core.dll
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Microsoft.Graph.dll
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Newtonsoft.Json.dll
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Microsoft.Graph.xml
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Microsoft.Graph.Core.xml
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\bin\Debug\Newtonsoft.Json.xml
+C:\Users\mending\source\repos\MsgraphWorkItems\Msgraph.WorkItem\obj\Debug\Msgraph.WorkItem.csproj.CopyComplete
