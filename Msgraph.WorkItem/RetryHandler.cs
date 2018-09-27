@@ -32,7 +32,10 @@ namespace Msgraph.WorkItem
         //{
         //    
         //}
+        public RetryHandler()
+        {
 
+        }
         public RetryHandler(HttpMessageHandler innerHandler)
         {
             InnerHandler = innerHandler;
